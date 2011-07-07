@@ -261,8 +261,39 @@ class Cds(core.BaseReader):
         self.data = CdsData()
 
     def write(self, table=None):
-        """Not available for the Cds class (raises NotImplementedError)"""
-        raise NotImplementedError
+        cds_header = [
+                "--------------------------------------------------------------------------------",
+                "   Bytes  Format   Units   Label    Explanations",
+                "--------------------------------------------------------------------------------",
+                ]
+        formatstr = ""
+        hdrformatstr = ""
+        hdrstr0 = ""
+        hdrstr1 = ""
+        hdrstr2 = ""
+        hdrstr3 = ""
+        byteloc = 0
+        for col in table.cols:
+            #bytes = "%3i-%3i" % (col.start,col.end)
+            size = max([col.data.dtype.itemsize+1,15])
+            bytes = "%3i-%3i" % (byteloc+1,byteloc+size)
+            byteloc+= size
+            format = "(%s%i)" % (str.upper(col.data.dtype.kind),size)
+            formatstr += "%%%i%s" % (size,str.lower(col.data.dtype.kind))
+            hdrformatstr = "%%%is" % (size)
+            hdrstr0 += "-"*size
+            hdrstr1 += hdrformatstr % col.name
+            hdrstr2 += hdrformatstr % col.units
+            hdrstr3 += "-"*size
+            cds_header.append("%8s%8s%8s%8s%8s" % (bytes,format,col.units,col.name,""))
+
+        lines = [hdrstr0,hdrstr1,hdrstr2,hdrstr3]
+        lines += [formatstr % tuple(L) for L in table.table]
+
+        return cds_header+lines
+
+        #"""Not available for the Cds class (raises NotImplementedError)"""
+        #raise NotImplementedError
 
 CdsReader = Cds
 
