@@ -261,11 +261,23 @@ class Cds(core.BaseReader):
         self.data = CdsData()
 
     def write(self, table=None):
+        """
+        Write a CDS table with incorporated header
+
+        If the table has been read from a table type that has a "descr" parameter,
+        the "Explanations" column will be filled, else it will be left blank.
+
+        Limitations:
+            -byte locations are limited to 3 digits
+            -format, units, and label strings are limited to 8 characters
+        """
         cds_header = [
-                "--------------------------------------------------------------------------------",
-                "     Bytes    Format     Units     Label      Explanations",
-                "--------------------------------------------------------------------------------",
+                "-"*80,
+                "   Bytes   Format    Units    Label     Explanations",
+                "-"*80,
                 ]
+
+        # declare blank strings that will be appended to individually...
         formatstr = ""
         hdrformatstr = ""
         hdrstr0 = ""
@@ -274,26 +286,50 @@ class Cds(core.BaseReader):
         hdrstr3 = ""
         byteloc = 0
         for col in table.cols:
-            #bytes = "%3i-%3i" % (col.start,col.end)
-            size = max([col.data.dtype.itemsize+1,15])
-            bytes = "%3i-%3i" % (byteloc+1,byteloc+size)
+            # specify the number of characters available for each column
+            # (must be at least 15; that's a semi-reasonable but also entirely
+            # arbitrary minimum value)
+            size = max([col.data.dtype.itemsize+1, 15])
+
+            # byte locations are 1-indexed and end-inclusive
+            bytes = "%3i-%3i" % (byteloc+1, byteloc+size)
             byteloc+= size
-            format = "(%s%i)" % (str.upper(col.data.dtype.kind),size)
-            formatstr += "%%%i%s" % (size,str.lower(col.data.dtype.kind))
-            hdrformatstr = "%%%is" % (size)
-            hdrstr0 += "-"*size
+
+            # The Format for the CDS header
+            format = "(%s%i)" % (str.upper(col.data.dtype.kind), size)
+            # For each column, add a format string to apply to the data based
+            # on the length of the variable and its type
+            # The format strings are space-separated to avoid overlap
+            formatstr += "%%%i%s " % (size, str.lower(col.data.dtype.kind))
+            hdrformatstr = "%%%is " % (size)
+
+            # add dashes equal to the number of characters in the format string
+            # (size+1 because of the additional space)
+            # Then, apply header format strings defined above to each column heading
+            hdrstr0 += "-"*(size+1)
             hdrstr1 += hdrformatstr % col.name
             hdrstr2 += hdrformatstr % col.units
-            hdrstr3 += "-"*size
-            cds_header.append("%10s%10s%10s%10s%10s" % (bytes,format,col.units,col.name,""))
+            hdrstr3 += "-"*(size+1)
 
-        lines = [hdrstr0,hdrstr1,hdrstr2,hdrstr3]
+            # Check whether there is a 'descr' parameter.  As of 7/11/11, only CDS tables have these
+            if hasattr(col, "descr"):
+                descr = col.descr
+                descrlen = len(descr)
+            else:
+                descr = ""
+                descrlen = 0
+            # header elements are space-separated (to avoid overlap) and total 80 chars
+            cds_header.append("%8s %8s %8s %8s %44s" % (bytes, format, col.units, col.name, descr[:44]))
+            # add any extra characters to additional lines...
+            while descrlen > 44:
+                descr = descr[44:]
+                descrlen = len(descr)
+                cds_header.append(" "*36 + "%44s" % descr[:44])
+
+        lines = [hdrstr0, hdrstr1, hdrstr2, hdrstr3]
         lines += [formatstr % tuple(L) for L in table.table]
 
         return cds_header+lines
-
-        #"""Not available for the Cds class (raises NotImplementedError)"""
-        #raise NotImplementedError
 
 CdsReader = Cds
 
