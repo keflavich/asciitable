@@ -263,7 +263,7 @@ class Cds(core.BaseReader):
     def write(self, table=None):
         cds_header = [
                 "--------------------------------------------------------------------------------",
-                "   Bytes  Format   Units   Label    Explanations",
+                "     Bytes    Format     Units     Label      Explanations",
                 "--------------------------------------------------------------------------------",
                 ]
         formatstr = ""
@@ -285,7 +285,7 @@ class Cds(core.BaseReader):
             hdrstr1 += hdrformatstr % col.name
             hdrstr2 += hdrformatstr % col.units
             hdrstr3 += "-"*size
-            cds_header.append("%8s%8s%8s%8s%8s" % (bytes,format,col.units,col.name,""))
+            cds_header.append("%10s%10s%10s%10s%10s" % (bytes,format,col.units,col.name,""))
 
         lines = [hdrstr0,hdrstr1,hdrstr2,hdrstr3]
         lines += [formatstr % tuple(L) for L in table.table]
