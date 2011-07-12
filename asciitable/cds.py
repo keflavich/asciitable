@@ -268,7 +268,6 @@ class Cds(core.BaseReader):
         the "Explanations" column will be filled, else it will be left blank.
 
         Limitations:
-            -multi-line explanations are not currently supported
             -byte locations are limited to 3 digits
             -format, units, and label strings are limited to 8 characters
         """
@@ -315,10 +314,17 @@ class Cds(core.BaseReader):
             # Check whether there is a 'descr' parameter.  As of 7/11/11, only CDS tables have these
             if hasattr(col, "descr"):
                 descr = col.descr
+                descrlen = len(descr)
             else:
                 descr = ""
+                descrlen = 0
             # header elements are space-separated (to avoid overlap) and total 80 chars
-            cds_header.append("%8s %8s %8s %8s %44s" % (bytes, format, col.units, col.name, descr))
+            cds_header.append("%8s %8s %8s %8s %44s" % (bytes, format, col.units, col.name, descr[:44]))
+            # add any extra characters to additional lines...
+            while descrlen > 44:
+                descr = descr[44:]
+                descrlen = len(descr)
+                cds_header.append(" "*36 + "%44s" % descr[:44])
 
         lines = [hdrstr0, hdrstr1, hdrstr2, hdrstr3]
         lines += [formatstr % tuple(L) for L in table.table]
