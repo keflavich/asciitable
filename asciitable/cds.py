@@ -261,6 +261,17 @@ class Cds(core.BaseReader):
         self.data = CdsData()
 
     def write(self, table=None):
+        """
+        Write a CDS table with incorporated header
+
+        If the table has been read from a table type that has a "descr" parameter,
+        the "Explanations" column will be filled, else it will be left blank.
+
+        Limitations:
+            -multi-line explanations are not currently supported
+            -byte locations are limited to 3 digits
+            -format, units, and label strings are limited to 8 characters
+        """
         cds_header = [
                 "--------------------------------------------------------------------------------",
                 "   Bytes  Format   Units   Label    Explanations",
@@ -275,19 +286,23 @@ class Cds(core.BaseReader):
         byteloc = 0
         for col in table.cols:
             #bytes = "%3i-%3i" % (col.start,col.end)
-            size = max([col.data.dtype.itemsize+1,15])
-            bytes = "%3i-%3i" % (byteloc+1,byteloc+size)
+            size = max([col.data.dtype.itemsize+1, 15])
+            bytes = "%3i-%3i" % (byteloc+1, byteloc+size)
             byteloc+= size
-            format = "(%s%i)" % (str.upper(col.data.dtype.kind),size)
-            formatstr += "%%%i%s" % (size,str.lower(col.data.dtype.kind))
+            format = "(%s%i)" % (str.upper(col.data.dtype.kind), size)
+            formatstr += "%%%i%s" % (size, str.lower(col.data.dtype.kind))
             hdrformatstr = "%%%is" % (size)
             hdrstr0 += "-"*size
             hdrstr1 += hdrformatstr % col.name
             hdrstr2 += hdrformatstr % col.units
             hdrstr3 += "-"*size
-            cds_header.append("%8s%8s%8s%8s%8s" % (bytes,format,col.units,col.name,""))
+            if hasattr(col, "descr"):
+                descr = col.descr
+            else:
+                descr = ""
+            cds_header.append("%8s%8s%8s%8s%40s" % (bytes, format, col.units, col.name, descr))
 
-        lines = [hdrstr0,hdrstr1,hdrstr2,hdrstr3]
+        lines = [hdrstr0, hdrstr1, hdrstr2, hdrstr3]
         lines += [formatstr % tuple(L) for L in table.table]
 
         return cds_header+lines
