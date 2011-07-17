@@ -22,3 +22,8 @@ cds_reader = asciitable.get_reader(Reader=asciitable.Cds)
 cds_table = cds_reader.read('t/cds2.dat')
 asciitable.write(cds_reader,'t/cds_convert_to_cds.cds',Writer=asciitable.Cds)
 
+
+test_read_ipaccds = cds_reader.read('t/ipac_convert_to_cds.cds')
+print test_read_ipaccds
+test_read_cdscds = cds_reader.read('t/cds_convert_to_cds.cds')
+print test_read_cdscds[:5]

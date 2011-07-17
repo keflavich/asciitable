@@ -33,6 +33,7 @@ cds.py:
 import fnmatch
 import itertools
 import re
+import numpy as np
 
 import asciitable.core as core
 
@@ -272,10 +273,17 @@ class Cds(core.BaseReader):
             -format, units, and label strings are limited to 8 characters
         """
         cds_header = [
+                "=" * 80,
+                "Byte-by-byte Description of file ",
                 "-"*80,
                 "   Bytes   Format    Units    Label     Explanations",
                 "-"*80,
                 ]
+
+        format_char_dict = {"A":"A", "S":"A",
+                "F":"E","f":"E",
+                "i":"I","I":"I",
+                "e":"E","E":"E"}
 
         # declare blank strings that will be appended to individually...
         formatstr = ""
@@ -285,6 +293,7 @@ class Cds(core.BaseReader):
         hdrstr2 = ""
         hdrstr3 = ""
         byteloc = 0
+        sizes = []
         for col in table.cols:
             # specify the number of characters available for each column
             # (must be at least 15; that's a semi-reasonable but also entirely
@@ -296,12 +305,16 @@ class Cds(core.BaseReader):
             byteloc+= size
 
             # The Format for the CDS header
-            format = "(%s%i)" % (str.upper(col.data.dtype.kind), size)
+            format = "%s%i" % (format_char_dict[str.upper(col.data.dtype.kind)], size)
             # For each column, add a format string to apply to the data based
             # on the length of the variable and its type
             # The format strings are space-separated to avoid overlap
-            formatstr += "%%%i%s " % (size, str.lower(col.data.dtype.kind))
-            hdrformatstr = "%%%is " % (size)
+            if str.lower(col.data.dtype.kind) == 'f':
+                formatstr += "%%%ig" % (size)
+            else:
+                formatstr += "%%%i%s" % (size, str.lower(col.data.dtype.kind))
+            hdrformatstr = "%%%is" % (size)
+            sizes += [size]
 
             # add dashes equal to the number of characters in the format string
             # (size+1 because of the additional space)
@@ -316,18 +329,23 @@ class Cds(core.BaseReader):
                 descr = col.descr
                 descrlen = len(descr)
             else:
-                descr = ""
+                descr = "blank"
                 descrlen = 0
             # header elements are space-separated (to avoid overlap) and total 80 chars
-            cds_header.append("%8s %8s %8s %8s %44s" % (bytes, format, col.units, col.name, descr[:44]))
+            cds_header.append("%8s  %6s %7s %8s %46s" % (bytes, format, col.units, col.name, descr[:46]))
             # add any extra characters to additional lines...
-            while descrlen > 44:
-                descr = descr[44:]
+            while descrlen > 46:
+                descr = descr[46:]
                 descrlen = len(descr)
-                cds_header.append(" "*36 + "%44s" % descr[:44])
+                cds_header.append(" "*36 + "%46s" % descr[:46])
 
         lines = [hdrstr0, hdrstr1, hdrstr2, hdrstr3]
-        lines += [formatstr % tuple(L) for L in table.table]
+        lines += [formatstr % tuple(L) if type(L) is np.core.records.record else formatstr % tuple(L.data.tolist()) for L in table.table]
+        # forcibly truncate oversized strings.  This is a bad hack, but I don't know how to do smarter truncation
+        # ideally, we want a number like 2345678901 to be represented in "E" format, but if it's in f format, it comes
+        # out as '2345678901.000000' which is 17 chars, even if the format specification (which is valid) is for 15.
+        # So, I hope this hack sort of works...
+        # no, that's wrong... lines = [L[:size] for L,size in zip(lines,sizes)]
 
         return cds_header+lines
 
