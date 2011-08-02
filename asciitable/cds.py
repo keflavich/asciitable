@@ -310,7 +310,9 @@ class Cds(core.BaseReader):
             # on the length of the variable and its type
             # The format strings are space-separated to avoid overlap
             if str.lower(col.data.dtype.kind) == 'f':
-                formatstr += "%%%ig" % (size)
+                # this is an ugly hack to forced floats to fit within their
+                # specified lengths.  
+                formatstr += "%%%ie" % (size)
             else:
                 formatstr += "%%%i%s" % (size, str.lower(col.data.dtype.kind))
             hdrformatstr = "%%%is" % (size)
@@ -341,11 +343,6 @@ class Cds(core.BaseReader):
 
         lines = [hdrstr0, hdrstr1, hdrstr2, hdrstr3]
         lines += [formatstr % tuple(L) if type(L) is np.core.records.record else formatstr % tuple(L.data.tolist()) for L in table.table]
-        # forcibly truncate oversized strings.  This is a bad hack, but I don't know how to do smarter truncation
-        # ideally, we want a number like 2345678901 to be represented in "E" format, but if it's in f format, it comes
-        # out as '2345678901.000000' which is 17 chars, even if the format specification (which is valid) is for 15.
-        # So, I hope this hack sort of works...
-        # no, that's wrong... lines = [L[:size] for L,size in zip(lines,sizes)]
 
         return cds_header+lines
 
